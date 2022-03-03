@@ -3,10 +3,16 @@ package com.example.managementtool.activities
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.text.TextUtils
+import android.util.Log
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import com.example.managementtool.R
+import com.example.managementtool.firebase.FireStoreClass
+import com.example.managementtool.models.User
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 
 class SignUpActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,16 +38,33 @@ class SignUpActivity : BaseActivity() {
     }
 
      private fun registerUser(){
-         val name:String = findViewById<TextView>(R.id.et_name).toString().trim{it <= ' '}
-         val email:String = findViewById<TextView>(R.id.et_email).toString().trim{it <= ' '}
-         val password:String = findViewById<TextView>(R.id.et_password).toString().trim{it <= ' '}
+         val name:String = findViewById<EditText>(R.id.et_name).text.toString().trim{it <= ' '}
+         val email:String = findViewById<EditText>(R.id.et_email).text.toString().trim{it <= ' '}
+         val password:String = findViewById<EditText>(R.id.et_password).text.toString().trim{it <= ' '}
+
+
 
           if(validateForm(name, email, password)){
-              Toast.makeText(this,"now you can register",Toast.LENGTH_SHORT).show()
+             showProgressDialog(resources.getString(R.string.Please_wait))
+              FirebaseAuth.getInstance()
+                  .createUserWithEmailAndPassword(email,password).addOnCompleteListener { task ->
+
+                      if (task.isSuccessful) {
+                          val firebaseUser: FirebaseUser = task.result!!.user!!
+                          val registerEmail = firebaseUser.email!!
+                          val user = User(firebaseUser.uid,name,registerEmail)
+                         FireStoreClass().registerUser(this,user)
+
+                      } else {
+                          Toast.makeText(this, task.exception!!.message, Toast.LENGTH_SHORT).show()
+                      }
+                  }
+
           }
      }
 
      private fun validateForm(name:String,email:String,password:String):Boolean{
+
           return when{
               TextUtils.isEmpty(name) ->{
                   showErrorSnackBar("Please enter a name")
@@ -60,5 +83,16 @@ class SignUpActivity : BaseActivity() {
           }
 
      }
+
+    fun userRegisteredSuccess() {
+        Toast.makeText(
+            this,
+            "you have successfully register the email",
+            Toast.LENGTH_LONG
+        ).show()
+        hideProgressDialog()
+        FirebaseAuth.getInstance().signOut()
+        finish()
+    }
 
 }
